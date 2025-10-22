@@ -3,587 +3,488 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Location Picker for Fishing App</title>
+    <title>Location Picker</title>
     
     <!-- Mapbox GL JS -->
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
-    
-    <!-- Mapbox Geocoder for search -->
-    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js'></script>
-    <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css' type='text/css' />
     
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            height: 100vh;
-            height: -webkit-fill-available;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
         
-        #map {
-            height: 45vh; /* Further reduced for mobile visibility */
-            width: 100%;
+        /* Map container */
+        .map-container {
+            height: 65%;
             position: relative;
         }
         
-        .info-panel {
-            background: white;
-            padding: 8px 10px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        #map {
+            width: 100%;
+            height: 100%;
         }
         
-        .instructions {
-            background: #fef3c7;
-            border: 1px solid #fcd34d;
-            border-radius: 6px;
-            padding: 6px 8px;
-            font-size: 11px;
-            color: #92400e;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+        /* Search bar overlay */
+        .search-wrapper {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            z-index: 10;
         }
         
-        .instructions strong {
-            font-weight: 600;
+        .search-container {
+            position: relative;
+            width: 100%;
         }
         
-        /* Combined coordinates field for bracket format */
-        .combined-field {
-            background: #e6f2ff;
-            border: 2px solid #3b82f6;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 4px 0;
-        }
-        
-        .combined-field label {
-            display: block;
-            font-size: 10px;
-            color: #1e40af;
-            font-weight: 600;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .combined-value {
-            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-            font-size: 15px;
-            color: #1e293b;
-            font-weight: 600;
-            user-select: all;
-            cursor: text;
-            word-break: break-all;
-        }
-        
-        #location-name {
-            font-size: 10px;
-            color: #666;
-            font-style: italic;
-            padding: 0 2px;
-            line-height: 1.2;
-            max-height: 2.4em;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .button-group {
-            display: flex;
-            gap: 8px;
-            margin-top: 4px;
-        }
-        
-        .btn {
-            flex: 1;
-            padding: 10px 8px;
+        .custom-search {
+            width: 100%;
+            padding: 10px 12px;
             border: none;
             border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-        }
-        
-        .btn-primary {
-            background: #3b82f6;
-            color: white;
-        }
-        
-        .btn-primary:active {
-            background: #2563eb;
-            transform: scale(0.98);
-        }
-        
-        .btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #e5e7eb;
-        }
-        
-        .btn-secondary:active {
-            background: #e5e7eb;
-            transform: scale(0.98);
-        }
-        
-        .geocoder {
-            position: absolute;
-            z-index: 1;
-            width: calc(100% - 20px);
-            max-width: 400px;
-            top: 10px;
-            left: 10px;
-        }
-        
-        .mapboxgl-ctrl-geocoder {
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-            border-radius: 8px;
-            font-size: 14px;
-            min-width: 100%;
             background: white;
-        }
-        
-        .mapboxgl-ctrl-geocoder input {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             font-size: 14px;
-            padding: 10px;
-            background: white !important;
         }
         
-        .mapboxgl-ctrl-geocoder input:focus {
-            outline: none;
-            box-shadow: inset 0 0 0 1px #3b82f6;
-        }
-        
-        /* Fix for text overlap in search */
-        .mapboxgl-ctrl-geocoder--input {
-            background: white !important;
-            z-index: 2;
-        }
-        
-        .mapboxgl-ctrl-geocoder .suggestions {
-            z-index: 1000;
-        }
-        
-        /* Hide individual coordinate fields on mobile to save space */
-        .coordinates {
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
             display: none;
         }
         
-        /* Location controls positioning */
-        .mapboxgl-ctrl-top-right {
-            top: 60px !important; /* Move down to avoid search box */
+        .search-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+            transition: background 0.2s;
         }
         
-        .success-message {
-            position: fixed;
-            top: 70px;
+        .search-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .search-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* Control panel */
+        .control-panel {
+            height: 35%;
+            background: white;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .location-display {
+            background: #e6f2ff;
+            border: 2px solid #3b82f6;
+            border-radius: 6px;
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .location-label {
+            font-size: 11px;
+            color: #1e40af;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        
+        .location-coords {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            word-break: break-all;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        
+        .location-address {
+            font-size: 11px;
+            color: #666;
+            margin-top: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
+        }
+        
+        .copy-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            background: #3b82f6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .copy-btn:active {
+            transform: scale(0.98);
+            background: #2563eb;
+        }
+        
+        /* Mapbox overrides */
+        .mapboxgl-ctrl-group {
+            background: white !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+        }
+        
+        .mapboxgl-ctrl-top-right {
+            top: 50px;
+            right: 8px;
+        }
+        
+        /* Toast notification */
+        .toast {
+            position: absolute;
+            top: 60px;
             left: 50%;
             transform: translateX(-50%);
             background: #10b981;
             color: white;
-            padding: 10px 16px;
+            padding: 10px 20px;
             border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            display: none;
-            animation: slideDown 0.3s ease;
-            z-index: 2000;
             font-size: 14px;
             font-weight: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            white-space: nowrap;
         }
         
-        @keyframes slideDown {
-            from { 
-                transform: translate(-50%, -100%);
-                opacity: 0;
-            }
-            to { 
-                transform: translate(-50%, 0);
-                opacity: 1;
-            }
+        .toast.show {
+            opacity: 1;
         }
         
-        /* Larger screens - show more info */
-        @media (min-width: 768px) and (min-height: 700px) {
-            #map {
-                height: 60vh;
-            }
-            
-            .info-panel {
-                padding: 15px;
-            }
-            
-            .instructions {
-                font-size: 13px;
-                padding: 10px;
-            }
-            
-            .coordinates {
-                display: flex;
-                gap: 10px;
-                margin: 10px 0;
-                flex-wrap: wrap;
-            }
-            
-            .coord-group {
-                flex: 1;
-                min-width: 150px;
-            }
-            
-            .coord-group label {
-                display: block;
-                font-size: 12px;
-                color: #666;
-                margin-bottom: 3px;
-                font-weight: 500;
-            }
-            
-            .coord-value {
-                font-family: 'Courier New', monospace;
-                font-size: 14px;
-                background: #f5f5f5;
-                padding: 8px;
-                border-radius: 4px;
-                border: 1px solid #e0e0e0;
-                user-select: all;
-                cursor: text;
-            }
-            
-            #location-name {
-                font-size: 13px;
-                max-height: none;
-            }
+        .toast.error {
+            background: #ef4444;
         }
         
-        /* Very small screens or landscape mode */
+        /* Marker pulse animation */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            100% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+        }
+        
+        .mapboxgl-marker {
+            animation: pulse 2s infinite;
+        }
+        
+        /* Responsive adjustments */
         @media (max-height: 600px) {
-            #map {
-                height: 40vh;
+            .map-container {
+                height: 60%;
             }
             
-            .instructions {
-                padding: 4px 6px;
-                font-size: 10px;
-            }
-            
-            .btn {
-                padding: 8px 6px;
-                font-size: 12px;
-            }
-            
-            .combined-field {
+            .control-panel {
+                height: 40%;
                 padding: 8px;
             }
             
-            .combined-value {
-                font-size: 14px;
+            .location-coords {
+                font-size: 15px;
+            }
+            
+            .copy-btn {
+                padding: 12px;
             }
         }
     </style>
 </head>
 <body>
-    <div id="geocoder" class="geocoder"></div>
-    <div id="map"></div>
-    
-    <div class="info-panel">
-        <div class="instructions">
-            🎣 <strong>Tap map or search to set location</strong>
-        </div>
-        
-        <!-- Hidden on mobile, shown on larger screens -->
-        <div class="coordinates">
-            <div class="coord-group">
-                <label>Latitude</label>
-                <div class="coord-value" id="lat">Not selected</div>
-            </div>
-            <div class="coord-group">
-                <label>Longitude</label>
-                <div class="coord-value" id="lng">Not selected</div>
+    <div class="map-container">
+        <div id="map"></div>
+        <div class="search-wrapper">
+            <div class="search-container">
+                <input type="text" class="custom-search" id="searchBox" placeholder="🔍 Search for location..." autocomplete="off">
+                <div class="search-dropdown" id="searchDropdown"></div>
             </div>
         </div>
-        
-        <!-- Main coordinate display for mobile -->
-        <div class="combined-field">
-            <label>📍 Location Coordinates</label>
-            <div class="combined-value" id="combined">Tap map to select</div>
-        </div>
-        
-        <div id="location-name"></div>
-        
-        <div class="button-group">
-            <button class="btn btn-secondary" onclick="copyCoordinates()">
-                📋 Copy
-            </button>
-            <button class="btn btn-primary" onclick="saveLocation()">
-                ✅ Use Location
-            </button>
-        </div>
+        <div class="toast" id="toast"></div>
     </div>
     
-    <div class="success-message" id="successMessage">
-        Coordinates copied!
+    <div class="control-panel">
+        <div class="location-display">
+            <div class="location-label">📍 Selected Location</div>
+            <div class="location-coords" id="coords">Tap map to select</div>
+            <div class="location-address" id="address"></div>
+        </div>
+        
+        <button class="copy-btn" onclick="copyCoordinates()">
+            📋 Copy Coordinates
+        </button>
     </div>
 
     <script>
-        // IMPORTANT: Replace with your Mapbox access token
+        // Your Mapbox token
         mapboxgl.accessToken = 'pk.eyJ1IjoiZmllbGRkb2MiLCJhIjoiY2p1MW8zOHNyMDNwZTQ0bXlhMjNxaXVpMSJ9.0tUMQt2s0zd6DAthnmJItg';
         
-        // Initialize the map
+        // Initialize map
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/outdoors-v12', // Outdoor style perfect for fishing
-            center: [-98.5795, 39.8283], // Center of USA
+            style: 'mapbox://styles/mapbox/outdoors-v12',
+            center: [-98.5795, 39.8283],
             zoom: 4,
-            attributionControl: false // Hide attribution on mobile to save space
+            attributionControl: false
         });
         
-        // Add compact attribution
-        map.addControl(new mapboxgl.AttributionControl({
-            compact: true
-        }));
+        // Add minimal attribution
+        map.addControl(new mapboxgl.AttributionControl({ compact: true }));
         
-        // Store selected location
-        let selectedLocation = {
-            lat: null,
-            lng: null,
-            name: null
-        };
-        
-        // Add navigation controls - compact for mobile
-        map.addControl(new mapboxgl.NavigationControl({
-            showCompass: false, // Hide compass on mobile
-            visualizePitch: false
+        // Add zoom controls
+        map.addControl(new mapboxgl.NavigationControl({ 
+            showCompass: false,
+            visualizePitch: false 
         }), 'top-right');
         
-        // Add geolocate control (find user's current location)
+        // Add GPS locator
         const geolocate = new mapboxgl.GeolocateControl({
-            positionOptions: {
-                enableHighAccuracy: true
-            },
-            trackUserLocation: false, // Don't track continuously on mobile
+            positionOptions: { enableHighAccuracy: true },
+            trackUserLocation: false,
             showUserHeading: false,
             showAccuracyCircle: false
         });
         map.addControl(geolocate, 'top-right');
         
-        // Initialize geocoder (search box)
-        const geocoder = new MapboxGeocoder({
-            accessToken: mapboxgl.accessToken,
-            mapboxgl: mapboxgl,
-            placeholder: 'Search location...',
-            marker: false, // We'll use our own marker
-            flyTo: {
-                speed: 1.5 // Faster fly animation on mobile
-            },
-            clearAndBlurOnEsc: true,
-            clearOnBlur: true
-        });
+        // Selected location state
+        let selectedLocation = null;
         
-        document.getElementById('geocoder').appendChild(geocoder.onAdd(map));
-        
-        // Fix for search box rendering issues
-        setTimeout(() => {
-            const searchInput = document.querySelector('.mapboxgl-ctrl-geocoder--input');
-            if (searchInput) {
-                searchInput.style.backgroundColor = 'white';
-                searchInput.style.opacity = '1';
-            }
-        }, 100);
-        
-        // Create a marker for the selected location
+        // Create draggable marker
         let marker = new mapboxgl.Marker({
             color: '#ef4444',
             draggable: true
         });
         
-        // Handle map clicks
-        map.on('click', (e) => {
-            const { lng, lat } = e.lngLat;
-            setLocation(lat, lng);
-            reverseGeocode(lng, lat);
+        // Search functionality with dropdown
+        const searchBox = document.getElementById('searchBox');
+        const dropdown = document.getElementById('searchDropdown');
+        let searchTimeout;
+        let searchResults = [];
+        
+        // Search for locations
+        async function searchLocations(query) {
+            if (query.length < 3) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxgl.accessToken}&limit=5`
+                );
+                const data = await response.json();
+                
+                if (data.features && data.features.length > 0) {
+                    searchResults = data.features;
+                    showDropdown(searchResults);
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                dropdown.style.display = 'none';
+            }
+        }
+        
+        // Show dropdown with results
+        function showDropdown(results) {
+            dropdown.innerHTML = '';
+            dropdown.style.display = 'block';
+            
+            results.forEach((result) => {
+                const item = document.createElement('div');
+                item.className = 'search-item';
+                item.textContent = result.place_name;
+                
+                item.addEventListener('click', () => {
+                    selectLocation(result);
+                });
+                
+                dropdown.appendChild(item);
+            });
+        }
+        
+        // Select a location from dropdown
+        function selectLocation(result) {
+            const [lng, lat] = result.center;
+            updateLocation(lat, lng, result.place_name);
+            searchBox.value = '';
+            dropdown.style.display = 'none';
+        }
+        
+        // Handle search input
+        searchBox.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            if (query.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                searchLocations(query);
+            }, 300);
         });
         
-        // Handle geocoder result
-        geocoder.on('result', (e) => {
-            const { center, place_name } = e.result;
-            setLocation(center[1], center[0], place_name);
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchBox.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        // Clear search on escape
+        searchBox.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                searchBox.value = '';
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        // Handle map clicks
+        map.on('click', (e) => {
+            updateLocation(e.lngLat.lat, e.lngLat.lng);
         });
         
         // Handle marker drag
         marker.on('dragend', () => {
             const lngLat = marker.getLngLat();
-            setLocation(lngLat.lat, lngLat.lng);
-            reverseGeocode(lngLat.lng, lngLat.lat);
+            updateLocation(lngLat.lat, lngLat.lng);
         });
         
-        // Set location and update UI
-        function setLocation(lat, lng, name = null) {
-            selectedLocation.lat = lat;
-            selectedLocation.lng = lng;
-            selectedLocation.name = name;
+        // Update location
+        function updateLocation(lat, lng, placeName = null) {
+            selectedLocation = { lat, lng, name: placeName };
             
-            // Update marker position
+            // Update marker
             marker.setLngLat([lng, lat]).addTo(map);
             
-            // Update coordinate displays
-            document.getElementById('lat').textContent = lat.toFixed(6);
-            document.getElementById('lng').textContent = lng.toFixed(6);
+            // Update display - no brackets
+            document.getElementById('coords').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
             
-            // Update combined field with bracket format
-            document.getElementById('combined').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            
-            // Update location name if provided
-            if (name) {
-                document.getElementById('location-name').textContent = name;
-            }
-            
-            // Pan to location with appropriate zoom
+            // Fly to location
             map.flyTo({
                 center: [lng, lat],
                 zoom: Math.max(map.getZoom(), 14),
                 duration: 800
             });
-        }
-        
-        // Reverse geocode to get place name
-        async function reverseGeocode(lng, lat) {
-            try {
-                const response = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
-                );
-                const data = await response.json();
-                
-                if (data.features && data.features.length > 0) {
-                    const place = data.features[0].place_name;
-                    document.getElementById('location-name').textContent = place;
-                    selectedLocation.name = place;
-                }
-            } catch (error) {
-                console.error('Error reverse geocoding:', error);
+            
+            // Reverse geocode if no place name
+            if (!placeName) {
+                fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.features && data.features[0]) {
+                            const name = data.features[0].place_name;
+                            selectedLocation.name = name;
+                            document.getElementById('address').textContent = name;
+                        }
+                    })
+                    .catch(() => {
+                        document.getElementById('address').textContent = '';
+                    });
+            } else {
+                document.getElementById('address').textContent = placeName;
             }
         }
         
-        // Copy coordinates to clipboard
+        // Copy coordinates function
         function copyCoordinates() {
-            if (!selectedLocation.lat || !selectedLocation.lng) {
-                showSuccess('Please select a location first!');
+            if (!selectedLocation) {
+                showToast('Please select a location first', 'error');
                 return;
             }
             
-            const coordString = `${selectedLocation.lat}, ${selectedLocation.lng}`;
+            const text = `${selectedLocation.lat}, ${selectedLocation.lng}`;
             
-            // Fallback for older browsers
-            if (!navigator.clipboard) {
-                const textArea = document.createElement("textarea");
-                textArea.value = coordString;
-                textArea.style.position = "fixed";
-                textArea.style.top = "-1000px";
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showSuccess('Coordinates copied!');
-                return;
+            // Try modern clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showToast('Coordinates copied!'))
+                    .catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
             }
-            
-            navigator.clipboard.writeText(coordString).then(() => {
-                showSuccess('Coordinates copied!');
-            }).catch(() => {
-                // Fallback if clipboard API fails
-                showSuccess('Tap and hold to copy');
+        }
+        
+        // Fallback copy method
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Coordinates copied!');
+        }
+        
+        // Show toast message
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast';
+            if (type === 'error') toast.classList.add('error');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+        
+        // Check for URL parameters
+        const params = new URLSearchParams(window.location.search);
+        const lat = params.get('lat');
+        const lng = params.get('lng');
+        if (lat && lng) {
+            map.on('load', () => {
+                updateLocation(parseFloat(lat), parseFloat(lng));
             });
         }
-        
-        // Save location (send back to Glide)
-        function saveLocation() {
-            if (!selectedLocation.lat || !selectedLocation.lng) {
-                showSuccess('Please select a location first!');
-                return;
-            }
-            
-            // Format with brackets for Glide
-            const formattedData = `${selectedLocation.lat}, ${selectedLocation.lng}`;
-            
-            // Copy to clipboard
-            if (!navigator.clipboard) {
-                const textArea = document.createElement("textarea");
-                textArea.value = formattedData;
-                textArea.style.position = "fixed";
-                textArea.style.top = "-1000px";
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-            } else {
-                navigator.clipboard.writeText(formattedData);
-            }
-            
-            // Post message to parent (if embedded in iframe)
-            if (window.parent !== window) {
-                window.parent.postMessage({
-                    type: 'location-selected',
-                    latitude: selectedLocation.lat,
-                    longitude: selectedLocation.lng,
-                    formatted: formattedData,
-                    name: selectedLocation.name || ''
-                }, '*');
-            }
-            
-            // Show success message
-            showSuccess('Location saved & copied!');
-            
-            // Log for debugging
-            console.log('Location saved:', formattedData);
-        }
-        
-        // Show success message
-        function showSuccess(message) {
-            const successEl = document.getElementById('successMessage');
-            successEl.textContent = message;
-            successEl.style.display = 'block';
-            setTimeout(() => {
-                successEl.style.display = 'none';
-            }, 2500);
-        }
-        
-        // Try to get user's location on load
-        map.on('load', () => {
-            // Check URL parameters (in case returning from Glide)
-            const urlParams = new URLSearchParams(window.location.search);
-            const lat = urlParams.get('lat');
-            const lng = urlParams.get('lng');
-            
-            if (lat && lng) {
-                setLocation(parseFloat(lat), parseFloat(lng));
-                reverseGeocode(parseFloat(lng), parseFloat(lat));
-            }
-            // Don't auto-trigger geolocation on mobile - let user tap the button
-        });
-        
-        // Prevent iOS bounce scrolling
-        document.addEventListener('touchmove', function (e) {
-            if (!e.target.closest('.info-panel')) {
-                e.preventDefault();
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>
